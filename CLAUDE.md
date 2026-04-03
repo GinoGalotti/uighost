@@ -30,6 +30,11 @@
 - Use event sourcing for state changes
 - Ensure input validation at system boundaries
 
+### Project Reference
+
+- **Full project plan**: `uighost-project-plan-v2.md` — 4-week roadmap, architecture, CLI design, capture folder structure, all feature specs. READ THIS before making architecture decisions.
+- **Prompt templates reference**: `uighost-claude-code-prompts.md` — ready-to-use implementation prompts for each Day/feature.
+
 ### Project Config
 
 - **Topology**: hierarchical-mesh

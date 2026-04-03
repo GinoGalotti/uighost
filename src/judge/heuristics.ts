@@ -12,7 +12,7 @@
 //   - Color contrast (computed styles vs WCAG AA thresholds)
 // Results are saved to heuristics.json in the capture folder
 
-import type { ElementInfo, PageState } from '../crawler/web-crawler.js';
+import type { InteractiveElement, PageState } from '../crawler/web-crawler.js';
 
 export type Severity = 'critical' | 'major' | 'minor' | 'suggestion';
 
@@ -35,17 +35,17 @@ export function runHeuristics(_pages: PageState[]): HeuristicResults {
 }
 
 // Individual check stubs
-export function checkMissingAlt(_elements: ElementInfo[]): HeuristicFinding[] {
+export function checkMissingAlt(_elements: InteractiveElement[]): HeuristicFinding[] {
   // TODO: find img elements where alt is null or empty
   return [];
 }
 
-export function checkUnlabelledInputs(_elements: ElementInfo[]): HeuristicFinding[] {
+export function checkUnlabelledInputs(_elements: InteractiveElement[]): HeuristicFinding[] {
   // TODO: find inputs without aria-label or associated <label>
   return [];
 }
 
-export function checkGenericLinkText(_elements: ElementInfo[]): HeuristicFinding[] {
+export function checkGenericLinkText(_elements: InteractiveElement[]): HeuristicFinding[] {
   // TODO: find links with text matching generic phrases
   return [];
 }

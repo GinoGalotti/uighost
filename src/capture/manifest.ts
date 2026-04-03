@@ -1,8 +1,5 @@
-// TODO: Capture manifest — defines and serialises the manifest.json schema
-// Responsibilities:
-//   - Define the CaptureManifest type (urls, element counts, timings, tool version)
-//   - Build a manifest object from a CrawlResult
-//   - Read an existing manifest from disk (for downstream commands like evaluate/report)
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 
 export interface PageManifest {
   url: string;
@@ -21,12 +18,21 @@ export interface CaptureManifest {
   pages: PageManifest[];
 }
 
-export function buildManifest(_startUrl: string, _pages: PageManifest[], _durationMs: number): CaptureManifest {
-  // TODO: assemble and return manifest object
-  throw new Error('Not implemented');
+export function buildManifest(
+  startUrl: string,
+  pages: PageManifest[],
+  durationMs: number
+): CaptureManifest {
+  return {
+    version: '1.0.0',
+    startUrl,
+    capturedAt: new Date().toISOString(),
+    durationMs,
+    pages,
+  };
 }
 
-export async function readManifest(_captureDir: string): Promise<CaptureManifest> {
-  // TODO: read and parse manifest.json from the capture folder
-  throw new Error('Not implemented');
+export async function readManifest(captureDir: string): Promise<CaptureManifest> {
+  const raw = await fs.readFile(path.join(captureDir, 'manifest.json'), 'utf-8');
+  return JSON.parse(raw) as CaptureManifest;
 }
