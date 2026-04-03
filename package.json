@@ -1,0 +1,23 @@
+{
+  "name": "uighost",
+  "version": "0.1.0",
+  "description": "AI UI testing agent — capture → prompt → evaluate",
+  "type": "module",
+  "bin": {
+    "uighost": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "playwright": "^1.44.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
