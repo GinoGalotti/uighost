@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "start": "node dist/cli.js",
     "dev": "tsx src/cli.ts",
     "lint": "tsc --noEmit",
     "test": "node --import tsx/esm --test test/dom-extractor.test.ts"
