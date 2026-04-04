@@ -7,6 +7,7 @@ import { chromium } from 'playwright';
 import { crawl } from './crawler/web-crawler.js';
 import { saveCapture } from './capture/package.js';
 import { saveSession, loadSession } from './auth/session.js';
+import { evaluate } from './runner/local.js';
 
 program
   .name('uighost')
@@ -57,6 +58,22 @@ program
         console.log(`  ${e.url}: ${e.error}`);
       }
     }
+  });
+
+// ─── evaluate ────────────────────────────────────────────────────────────────
+
+program
+  .command('evaluate')
+  .description('Build prompts from the latest capture and print instructions for claude.ai')
+  .option('-p, --page <number>', 'use the per-page prompt for page N instead of full-site prompt')
+  .option('-c, --capture <dir>', 'path to a specific capture folder (default: latest)')
+  .option('--captures-dir <dir>', 'base captures directory', '.uighost/captures')
+  .action(async (options: { page?: string; capture?: string; capturesDir: string }) => {
+    await evaluate({
+      capturesDir: options.capturesDir,
+      captureDir: options.capture,
+      page: options.page !== undefined ? parseInt(options.page, 10) : undefined,
+    });
   });
 
 // ─── login ───────────────────────────────────────────────────────────────────
