@@ -131,5 +131,8 @@ export async function crawl(entryUrl: string, options: CrawlOptions): Promise<Cr
 
 function normalizeUrl(raw: string): string {
   const u = new URL(raw);
-  return u.origin + u.pathname; // strip query + hash for dedup
+  // Strip query + hash for dedup; treat /index.html as equivalent to /
+  let pathname = u.pathname.replace(/\/index\.html?$/, '/');
+  if (pathname === '') pathname = '/';
+  return u.origin + pathname;
 }
