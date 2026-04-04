@@ -39,7 +39,7 @@ export async function findLatestCapture(capturesDir = DEFAULT_CAPTURES_DIR): Pro
 
 // ─── Page data reconstruction ─────────────────────────────────────────────────
 
-async function loadPageStates(captureDir: string): Promise<PageState[]> {
+export async function loadPageStates(captureDir: string): Promise<PageState[]> {
   const manifest = await readManifest(captureDir);
   const pages: PageState[] = [];
 

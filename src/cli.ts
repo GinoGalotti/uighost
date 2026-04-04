@@ -7,7 +7,12 @@ import { chromium } from 'playwright';
 import { crawl } from './crawler/web-crawler.js';
 import { saveCapture } from './capture/package.js';
 import { saveSession, loadSession } from './auth/session.js';
-import { evaluate } from './runner/local.js';
+import { evaluate, findLatestCapture } from './runner/local.js';
+import { parseEvaluation, heuristicToFinding } from './judge/parser.js';
+import { generateReport } from './reporter/report.js';
+import { runHeuristics } from './judge/heuristics.js';
+import { readManifest } from './capture/manifest.js';
+import { spawn } from 'node:child_process';
 
 program
   .name('uighost')
@@ -75,6 +80,95 @@ program
       page: options.page !== undefined ? parseInt(options.page, 10) : undefined,
     });
   });
+
+// ─── report ──────────────────────────────────────────────────────────────────
+
+program
+  .command('report')
+  .description('Parse Claude\'s response and generate an HTML report')
+  .option('--from-clipboard', 'read Claude\'s response from clipboard')
+  .option('--from-file <path>', 'read Claude\'s response from a text file')
+  .option('-c, --capture <dir>', 'path to a specific capture folder (default: latest)')
+  .option('--captures-dir <dir>', 'base captures directory', '.uighost/captures')
+  .option('--no-open', 'do not open the report in the browser')
+  .action(async (options: {
+    fromClipboard?: boolean;
+    fromFile?: string;
+    capture?: string;
+    capturesDir: string;
+    open: boolean;
+  }) => {
+    // 1. Resolve capture dir
+    const captureDir = options.capture ?? await findLatestCapture(options.capturesDir);
+    const manifest = await readManifest(captureDir);
+
+    // 2. Get Claude's response text
+    let responseText = '';
+    if (options.fromFile) {
+      responseText = await fs.readFile(options.fromFile, 'utf-8');
+      console.log(`  Reading response from ${options.fromFile}`);
+    } else if (options.fromClipboard) {
+      responseText = await readClipboard();
+      console.log(`  Reading response from clipboard (${responseText.length} chars)`);
+    } else {
+      console.error('Error: provide --from-clipboard or --from-file <path>');
+      process.exit(1);
+    }
+
+    // 3. Parse LLM findings
+    const llmFindings = parseEvaluation(responseText);
+    console.log(`  Parsed ${llmFindings.length} LLM finding(s)`);
+
+    // 4. Re-run heuristics from saved page data
+    const { loadPageStates } = await import('./runner/local.js');
+    const pages = await loadPageStates(captureDir);
+    const heuristicFindings = await runHeuristics(pages);
+    const heuristicConverted = heuristicFindings.map(heuristicToFinding);
+
+    // 5. Merge (heuristics first, then LLM)
+    const allFindings = [...heuristicConverted, ...llmFindings];
+    console.log(`  Total findings: ${allFindings.length} (${heuristicConverted.length} heuristic + ${llmFindings.length} LLM)`);
+
+    // 6. Generate report
+    const reportPath = await generateReport(captureDir, allFindings);
+    console.log(`\n  Report saved: ${reportPath}`);
+
+    // 7. Open in browser
+    if (options.open) {
+      openInBrowser(reportPath);
+    }
+  });
+
+function readClipboard(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let cmd: string, args: string[];
+    if (process.platform === 'win32') {
+      cmd = 'powershell.exe';
+      args = ['-noprofile', '-command', 'Get-Clipboard'];
+    } else if (process.platform === 'darwin') {
+      cmd = 'pbpaste'; args = [];
+    } else {
+      cmd = 'xclip'; args = ['-selection', 'clipboard', '-o'];
+    }
+
+    const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'ignore'] });
+    let out = '';
+    proc.stdout.on('data', (d: Buffer) => { out += d.toString(); });
+    proc.on('close', () => resolve(out));
+    proc.on('error', reject);
+  });
+}
+
+function openInBrowser(filePath: string): void {
+  const absPath = path.resolve(filePath);
+  if (process.platform === 'win32') {
+    spawn('cmd', ['/c', 'start', '', absPath], { detached: true, stdio: 'ignore' });
+  } else if (process.platform === 'darwin') {
+    spawn('open', [absPath], { detached: true, stdio: 'ignore' });
+  } else {
+    spawn('xdg-open', [absPath], { detached: true, stdio: 'ignore' });
+  }
+}
 
 // ─── login ───────────────────────────────────────────────────────────────────
 
