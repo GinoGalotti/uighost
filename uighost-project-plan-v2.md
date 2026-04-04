@@ -410,16 +410,29 @@ uighost capture https://app.example.com
 ## CLI command summary
 
 ```bash
+# Auth (one-time, only needed for protected sites)
+uighost login https://app.example.com            # opens browser, you log in, session saved to .uighost/auth/<domain>.json
+                                                  # future captures for that domain load it automatically
+
 # Capture (always local, always free)
 uighost capture https://example.com              # crawl + screenshot + extract
 uighost capture https://example.com --depth 3     # deeper crawl
-uighost capture --window "My Godot Game"          # native/game UI
+uighost capture --window "My Godot Game"          # native/game UI (week 3)
+
+# Full local workflow (no API key needed)
+uighost login https://app.example.com            # (optional) save session for auth-protected sites
+uighost capture https://app.example.com          # crawl — auth loaded automatically if saved
+uighost evaluate                                  # runs heuristics, builds prompt, copies to clipboard
+                                                  # attach screenshots listed in output to your claude.ai message
+                                                  # paste Claude's response, then:
+uighost report --from-clipboard                  # generates report.html
 
 # Evaluate (choose your runner)
-uighost evaluate                                  # show prompt, you paste into claude.ai
-uighost evaluate --pipe                           # pipe into Claude Code
-uighost evaluate --api                            # call Claude API (BYOK)
-uighost evaluate --persona accessibility          # persona-specific evaluation
+uighost evaluate                                  # show prompt, you paste into claude.ai (Mode 1)
+uighost evaluate --page 1                        # per-page prompt for large sites
+uighost evaluate --pipe                           # pipe into Claude Code (Mode 2, week 2)
+uighost evaluate --api                            # call Claude API (BYOK, Mode 3, week 2)
+uighost evaluate --persona accessibility          # persona-specific evaluation (week 2)
 
 # Agent mode (requires pipe or API)
 uighost explore https://example.com               # autonomous exploration
