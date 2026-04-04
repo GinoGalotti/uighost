@@ -12,6 +12,7 @@ export interface CapturePackage {
 export interface SaveCaptureOptions {
   maxDepth: number;
   maxPages: number;
+  viewportWidth: number;
 }
 
 /**
@@ -48,7 +49,9 @@ export async function saveCapture(
     const page = result.pages[i];
     const idx = String(i + 1).padStart(3, '0');
     const dataFile = `page-${idx}.json`;
-    const screenshotFile = `page-${idx}.png`;
+    const screenshotFile = page.screenshotPaths[0]
+      ? path.basename(page.screenshotPaths[0].path)
+      : `page-${idx}-desktop.png`;
 
     await fs.writeFile(
       path.join(pagesDir, dataFile),
@@ -65,16 +68,26 @@ export async function saveCapture(
       )
     );
 
+    const screenshotFiles = page.screenshotPaths.map(sp => ({
+      label: sp.label,
+      file: path.basename(sp.path),
+    }));
+
     pageManifests.push({
       index: i + 1,
       url: page.url,
       screenshotFile,
+      screenshotFiles,
       dataFile,
       elementCount: page.interactiveElements.length,
     });
   }
 
-  const manifest = buildManifest(captureId, result.startUrl, pageManifests, options, result.durationMs);
+  const manifest = buildManifest(captureId, result.startUrl, pageManifests, {
+    maxDepth: options.maxDepth,
+    maxPages: options.maxPages,
+    viewportWidth: options.viewportWidth,
+  }, result.durationMs);
   await fs.writeFile(
     path.join(captureDir, 'manifest.json'),
     JSON.stringify(manifest, null, 2)

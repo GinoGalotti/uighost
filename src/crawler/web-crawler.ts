@@ -10,6 +10,7 @@ export interface CrawlOptions {
   maxPages: number;
   screenshotDir: string;
   storageStatePath?: string;
+  viewportWidth?: number;
 }
 
 export interface InteractiveElement {
@@ -34,7 +35,8 @@ export interface PageMetadata {
 export interface PageState {
   url: string;
   title: string;
-  screenshotPath: string;
+  screenshotPath: string;                                  // primary (desktop)
+  screenshotPaths: { label: string; path: string }[];     // all viewports
   accessibilityTree: string | null;
   interactiveElements: InteractiveElement[];
   metadata: PageMetadata;
@@ -66,9 +68,11 @@ export async function crawl(entryUrl: string, options: CrawlOptions): Promise<Cr
   const errors: Array<{ url: string; error: string }> = [];
 
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext(
-    options.storageStatePath ? { storageState: options.storageStatePath } : {}
-  );
+  const viewportWidth = options.viewportWidth ?? 1280;
+  const context = await browser.newContext({
+    viewport: { width: viewportWidth, height: 900 },
+    ...(options.storageStatePath ? { storageState: options.storageStatePath } : {}),
+  });
 
   try {
     while (queue.length > 0 && pages.length < maxPages) {
@@ -79,7 +83,7 @@ export async function crawl(entryUrl: string, options: CrawlOptions): Promise<Cr
       visited.add(url);
 
       const pageIndex = String(pages.length + 1).padStart(3, '0');
-      const screenshotPath = path.join(screenshotDir, `page-${pageIndex}.png`);
+      const screenshotPath = path.join(screenshotDir, `page-${pageIndex}-desktop.png`);
 
       console.log(`  [${pageIndex}] ${url}`);
 
@@ -87,9 +91,21 @@ export async function crawl(entryUrl: string, options: CrawlOptions): Promise<Cr
       try {
         await page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 });
         const extracted = await extractPageState(page);
-        await page.screenshot({ path: screenshotPath, fullPage: true });
 
-        pages.push({ ...extracted, screenshotPath });
+        // Desktop screenshot (already at primary viewport)
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+        const screenshotPaths: { label: string; path: string }[] = [
+          { label: 'desktop', path: screenshotPath },
+        ];
+
+        // Mobile screenshot
+        const mobilePath = path.join(screenshotDir, `page-${pageIndex}-mobile.png`);
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.screenshot({ path: mobilePath, fullPage: true });
+        screenshotPaths.push({ label: 'mobile', path: mobilePath });
+        await page.setViewportSize({ width: viewportWidth, height: 900 });
+
+        pages.push({ ...extracted, screenshotPath, screenshotPaths });
 
         if (depth < maxDepth) {
           for (const el of extracted.interactiveElements) {

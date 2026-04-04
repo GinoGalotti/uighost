@@ -42,8 +42,8 @@ function extractField(block: string, field: string): string | undefined {
 export function parseEvaluation(response: string): Finding[] {
   const findings: Finding[] = [];
 
-  // Split on ## Issue: or ### Issue: headers
-  const parts = response.split(/^#{2,3}\s+Issue:\s*/im);
+  // Split on "## Issue:" / "### Issue:" (raw markdown) or bare "Issue:" (rendered/copied text)
+  const parts = response.split(/^(?:#{1,3}\s+)?Issue:\s*/im);
 
   for (let i = 1; i < parts.length; i++) {
     const part = parts[i];

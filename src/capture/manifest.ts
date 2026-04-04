@@ -4,7 +4,8 @@ import * as path from 'node:path';
 export interface PageManifest {
   index: number;
   url: string;
-  screenshotFile: string;
+  screenshotFile: string;                                    // primary (desktop)
+  screenshotFiles: { label: string; file: string }[];       // all viewports
   dataFile: string;
   elementCount: number;
 }
@@ -15,7 +16,7 @@ export interface CaptureManifest {
   capturedAt: string;
   pageCount: number;
   pages: PageManifest[];
-  options: { maxDepth: number; maxPages: number };
+  options: { maxDepth: number; maxPages: number; viewportWidth: number };
   duration: number;
 }
 
@@ -23,7 +24,7 @@ export function buildManifest(
   captureId: string,
   entryUrl: string,
   pages: PageManifest[],
-  options: { maxDepth: number; maxPages: number },
+  options: { maxDepth: number; maxPages: number; viewportWidth: number },
   duration: number
 ): CaptureManifest {
   return {

@@ -1,7 +1,7 @@
 import type { Page } from 'playwright';
 import type { InteractiveElement, PageMetadata, PageState } from '../crawler/web-crawler.js';
 
-type ExtractedState = Omit<PageState, 'screenshotPath'>;
+type ExtractedState = Omit<PageState, 'screenshotPath' | 'screenshotPaths'>;
 
 export async function extractPageState(page: Page): Promise<ExtractedState> {
   const [url, title, interactiveElements, metadata, accessibilityTree] = await Promise.all([

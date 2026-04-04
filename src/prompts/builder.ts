@@ -5,6 +5,34 @@ import { readManifest } from '../capture/manifest.js';
 import type { PageManifest } from '../capture/manifest.js';
 
 // ---------------------------------------------------------------------------
+// Context file
+// ---------------------------------------------------------------------------
+
+interface SiteContext {
+  global?: string;
+  pages?: Record<string, string>; // URL (exact or prefix) → context note
+}
+
+async function loadContext(contextFile: string): Promise<SiteContext> {
+  try {
+    const raw = await fs.readFile(contextFile, 'utf-8');
+    return JSON.parse(raw) as SiteContext;
+  } catch {
+    return {};
+  }
+}
+
+function findPageContext(pageUrl: string, context: SiteContext): string | undefined {
+  const pages = context.pages ?? {};
+  // Exact match first, then longest prefix match
+  if (pages[pageUrl]) return pages[pageUrl];
+  const prefix = Object.keys(pages)
+    .filter(k => pageUrl.startsWith(k))
+    .sort((a, b) => b.length - a.length)[0];
+  return prefix ? pages[prefix] : undefined;
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -60,16 +88,20 @@ function formatHeuristicFindings(findings: HeuristicFinding[]): string {
     .join('\n\n');
 }
 
-function formatPageSection(page: PageManifest): string {
-  return [
+function formatPageSection(page: PageManifest, pageContext?: string): string {
+  const lines = [
     `### Page ${page.index}: ${page.url}`,
-    `- **Screenshot**: ${page.screenshotFile}`,
+    ...page.screenshotFiles.map(sf => `- **Screenshot (${sf.label})**: ${sf.file}`),
     `- **Elements captured**: ${page.elementCount}`,
-  ].join('\n');
+  ];
+  if (pageContext) lines.push(`- **Context**: ${pageContext}`);
+  return lines.join('\n');
 }
 
 function screenshotList(pages: PageManifest[]): string {
-  return pages.map((p) => `- ${p.screenshotFile}`).join('\n');
+  return pages
+    .flatMap(p => p.screenshotFiles.map(sf => `- ${sf.file} (${sf.label})`))
+    .join('\n');
 }
 
 function totalElements(pages: PageManifest[]): number {
@@ -105,9 +137,12 @@ export interface BuiltPrompts {
 export async function buildPrompts(
   captureDir: string,
   heuristics: HeuristicFinding[] = [],
+  contextFile?: string,
 ): Promise<void> {
-  // 1. Read manifest
+  // 1. Read manifest + context
   const manifest = await readManifest(captureDir);
+  const resolvedContext = contextFile ?? path.join(process.cwd(), '.uighost', 'context.json');
+  const context = await loadContext(resolvedContext);
 
   // 2. Load template
   const template = await loadTemplate('evaluate.md');
@@ -119,11 +154,17 @@ export async function buildPrompts(
   // 4. Build shared substitution values
   const findingsText = formatHeuristicFindings(heuristics);
   const totalEls = totalElements(manifest.pages);
+  const viewportWidth = manifest.options.viewportWidth ?? 1280;
+  const globalContext = context.global
+    ? `\n> **Site context**: ${context.global}\n`
+    : '';
 
   // -------------------------------------------------------------------------
   // evaluate-all.md
   // -------------------------------------------------------------------------
-  const allPagesText = manifest.pages.map(formatPageSection).join('\n\n');
+  const allPagesText = manifest.pages
+    .map(p => formatPageSection(p, findPageContext(p.url, context)))
+    .join('\n\n');
   const allScreenshots = screenshotList(manifest.pages);
 
   const evaluateAll = substitute(template, {
@@ -131,6 +172,8 @@ export async function buildPrompts(
     PAGE_COUNT: String(manifest.pageCount),
     CAPTURED_AT: manifest.capturedAt,
     TOTAL_ELEMENTS: String(totalEls),
+    VIEWPORT_WIDTH: String(viewportWidth),
+    GLOBAL_CONTEXT: globalContext,
     SCREENSHOTS_TO_ATTACH: allScreenshots,
     HEURISTIC_FINDINGS: findingsText,
     PAGES: allPagesText,
@@ -152,9 +195,11 @@ export async function buildPrompts(
       PAGE_COUNT: '1',
       CAPTURED_AT: manifest.capturedAt,
       TOTAL_ELEMENTS: String(page.elementCount),
+      VIEWPORT_WIDTH: String(viewportWidth),
+      GLOBAL_CONTEXT: globalContext,
       SCREENSHOTS_TO_ATTACH: `- ${page.screenshotFile}`,
       HEURISTIC_FINDINGS: pageFindingsText,
-      PAGES: formatPageSection(page),
+      PAGES: formatPageSection(page, findPageContext(page.url, context)),
     });
 
     const paddedIndex = String(page.index).padStart(3, '0');

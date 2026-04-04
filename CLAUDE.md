@@ -7,6 +7,8 @@
 - ALWAYS prefer editing an existing file to creating a new one
 - NEVER proactively create documentation files (*.md) or README files unless explicitly requested
 - NEVER save working files, text/mds, or tests to the root folder
+- NEVER run bash commands that contain backtick characters or shell brace expansion (e.g. `{a,b}`) — on Windows/git-bash these create empty literal files with garbage names; use dedicated tools (Glob, Grep, Read) instead of bash for file search/read tasks
+- NEVER pipe node -e "..." inline scripts through bash — pass scripts via a temp file or use the Read/Glob tools instead
 - Never continuously check status after spawning a swarm — wait for results
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files

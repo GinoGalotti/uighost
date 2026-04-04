@@ -45,10 +45,14 @@ export async function loadPageStates(captureDir: string): Promise<PageState[]> {
 
   for (const p of manifest.pages) {
     const dataPath = path.join(captureDir, 'pages', p.dataFile);
-    const raw = JSON.parse(await fs.readFile(dataPath, 'utf-8')) as Omit<PageState, 'screenshotPath'>;
+    const raw = JSON.parse(await fs.readFile(dataPath, 'utf-8')) as Omit<PageState, 'screenshotPath' | 'screenshotPaths'>;
     pages.push({
       ...raw,
       screenshotPath: path.join(captureDir, 'pages', p.screenshotFile),
+      screenshotPaths: p.screenshotFiles.map(sf => ({
+        label: sf.label,
+        path: path.join(captureDir, 'pages', sf.file),
+      })),
     });
   }
 
@@ -91,6 +95,7 @@ export interface EvaluateOptions {
   capturesDir?: string;
   captureDir?: string; // use a specific capture rather than latest
   page?: number;       // use per-page prompt for page N
+  contextFile?: string; // path to .uighost/context.json (auto-detected if omitted)
 }
 
 export async function evaluate(options: EvaluateOptions = {}): Promise<void> {
@@ -103,7 +108,7 @@ export async function evaluate(options: EvaluateOptions = {}): Promise<void> {
   const findings = await runHeuristics(pages);
 
   // 3. Build (or rebuild) prompt files
-  await buildPrompts(captureDir, findings);
+  await buildPrompts(captureDir, findings, options.contextFile);
 
   // 4. Determine which prompt to show
   let promptFile: string;
@@ -114,12 +119,12 @@ export async function evaluate(options: EvaluateOptions = {}): Promise<void> {
     promptFile = path.join(captureDir, 'prompts', `evaluate-page-${idx}.md`);
     const pageManifest = manifest.pages.find(p => p.index === options.page);
     screenshotFiles = pageManifest
-      ? [path.resolve(captureDir, 'pages', pageManifest.screenshotFile)]
+      ? pageManifest.screenshotFiles.map(sf => path.resolve(captureDir, 'pages', sf.file))
       : [];
   } else {
     promptFile = path.join(captureDir, 'prompts', 'evaluate-all.md');
-    screenshotFiles = manifest.pages.map(p =>
-      path.resolve(captureDir, 'pages', p.screenshotFile)
+    screenshotFiles = manifest.pages.flatMap(p =>
+      p.screenshotFiles.map(sf => path.resolve(captureDir, 'pages', sf.file))
     );
   }
 
@@ -144,8 +149,11 @@ export async function evaluate(options: EvaluateOptions = {}): Promise<void> {
   }
 
   console.log(`\n  Attach these screenshots to your claude.ai message:`);
-  for (const f of screenshotFiles) {
-    console.log(`    ${f}`);
+  for (const p of manifest.pages) {
+    console.log(`\n  Page ${p.index}: ${p.url}`);
+    for (const sf of p.screenshotFiles) {
+      console.log(`    [${sf.label}] ${path.resolve(captureDir, 'pages', sf.file)}`);
+    }
   }
 
   console.log(`\n  After Claude responds, copy the response and run:`);

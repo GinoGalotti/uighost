@@ -41,20 +41,33 @@ CLI entrypoint
 **Capture package** (saved to `.uighost/captures/<timestamp>/`):
 ```
 captures/2026-04-03_143022/
-├── manifest.json           # URLs, element counts, crawl metadata
+├── manifest.json                # URLs, element counts, viewport width, crawl metadata
 ├── pages/
-│   ├── page-001.png        # Full-page screenshot
-│   ├── page-001.json       # Accessibility tree + interactive elements
-│   ├── page-002.png
+│   ├── page-001-desktop.png     # Full-page screenshot at desktop viewport (default 1280px)
+│   ├── page-001-mobile.png      # Full-page screenshot at mobile viewport (390px)
+│   ├── page-001.json            # Accessibility tree + interactive elements
+│   ├── page-002-desktop.png
+│   ├── page-002-mobile.png
 │   ├── page-002.json
 │   └── ...
 ├── prompts/
-│   ├── evaluate-all.md     # Single prompt for full audit (for claude.ai)
-│   ├── evaluate-page-001.md # Per-page prompt (smaller, for iterating)
-│   └── explore-next.md     # Agent decision prompt (for autonomous mode)
-├── heuristics.json         # Programmatic check results (no LLM needed)
-└── report/                 # Final report output (after evaluation)
+│   ├── evaluate-all.md          # Full audit prompt — references desktop + mobile screenshots
+│   ├── evaluate-page-001.md     # Per-page prompt (smaller, for iterating)
+│   └── explore-next.md          # Agent decision prompt (for autonomous mode)
+└── report/                      # Final report output (after evaluation)
     └── report.html
+```
+
+**Project-level state** (persists across captures, gitignored except context.json):
+```
+.uighost/
+├── context.json             # Site context annotations — auto-generated after first capture,
+│                            # reviewed and edited by user before evaluating.
+│                            # Injected per-page into the Claude prompt.
+├── auth/
+│   └── <domain>.json        # Playwright storageState (session cookies, gitignored)
+└── captures/
+    └── ...
 ```
 
 **Repo structure:**
@@ -138,6 +151,38 @@ uighost capture https://app.example.com
 - StorageState expires when the site's session cookie expires — user reruns `login` to refresh
 - Does not handle apps that require a fresh login on every visit (short-lived tokens)
 - Future: `--auth-script <file>` option for scripted login flows (OAuth, SAML) that can't be done interactively
+
+---
+
+## Site Context Design
+
+**Problem:** Claude has no knowledge of the site's purpose, intended audience, or deliberate design choices. Without context it flags intentional decisions as bugs — "dark terminal aesthetic" as a contrast failure, "dense data tables" as a hierarchy problem, etc.
+
+**Solution: `.uighost/context.json`**
+
+A project-level file (gitignore-safe, not inside the capture folder) that the user reviews and edits once per site, then reuses across multiple captures.
+
+### Format
+
+```json
+{
+  "global": "One paragraph: site purpose, audience, design intent the AI should know.",
+  "pages": {
+    "https://example.com/dashboard": "This page is a GM reference tool, not user-facing. Dense data is intentional.",
+    "https://example.com/feed":      "Two-panel layout. Left: shared feed. Right: admin-only broadcast. Inputs are separate by design."
+  }
+}
+```
+
+URL matching is prefix-based — `"https://example.com/operatives/"` matches all operative detail pages.
+
+### Workflow
+
+1. `uighost capture <url>` — crawls the site, auto-generates a draft `context.json` with page titles and heading structure as hints if the file doesn't exist
+2. User reviews and fills in the TODOs in `context.json`
+3. `uighost evaluate` — injects context per-page into the Claude prompt
+
+The prompt template includes a note per page: `> **Context**: [user's annotation]`, and the global note at the top of the site overview section. The AI uses this to skip intentional patterns and focus on genuine usability problems.
 
 ---
 
@@ -415,17 +460,29 @@ uighost login https://app.example.com            # opens browser, you log in, se
                                                   # future captures for that domain load it automatically
 
 # Capture (always local, always free)
-uighost capture https://example.com              # crawl + screenshot + extract
-uighost capture https://example.com --depth 3     # deeper crawl
-uighost capture --window "My Godot Game"          # native/game UI (week 3)
+uighost capture https://example.com              # crawl + screenshot at desktop + mobile viewports
+uighost capture https://example.com --depth 3    # deeper crawl
+uighost capture https://example.com --viewport 1440  # custom desktop width (default: 1280)
+uighost capture --window "My Godot Game"         # native/game UI (week 3)
 
 # Full local workflow (no API key needed)
 uighost login https://app.example.com            # (optional) save session for auth-protected sites
-uighost capture https://app.example.com          # crawl — auth loaded automatically if saved
-uighost evaluate                                  # runs heuristics, builds prompt, copies to clipboard
-                                                  # attach screenshots listed in output to your claude.ai message
-                                                  # paste Claude's response, then:
-uighost report --from-clipboard                  # generates report.html
+uighost capture https://app.example.com          # crawl at desktop (1280px) + mobile (390px) viewports
+                                                  # if .uighost/context.json doesn't exist, generates a draft
+                                                  # with page titles and headings as hints
+
+# Before evaluating — review and edit the context file:
+#   .uighost/context.json
+# Add notes about each page's purpose and any design decisions the AI should treat as intentional.
+# This context is injected per-page into the Claude prompt.
+
+uighost evaluate                                  # runs heuristics, injects context, builds prompt
+                                                  # lists desktop + mobile screenshots to attach per page
+                                                  # paste into claude.ai with all screenshots
+                                                  # save Claude's response as a .md file (large responses
+                                                  # don't fit clipboard reliably), then:
+uighost report --from-file claude-response.md    # generates report.html (preferred)
+uighost report --from-clipboard                  # alternative for shorter responses
 
 # Evaluate (choose your runner)
 uighost evaluate                                  # show prompt, you paste into claude.ai (Mode 1)

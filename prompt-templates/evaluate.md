@@ -6,6 +6,8 @@ You are a UX auditor reviewing a web application.
 - **Pages captured**: {{PAGE_COUNT}}
 - **Captured at**: {{CAPTURED_AT}}
 - **Total interactive elements**: {{TOTAL_ELEMENTS}}
+- **Screenshots captured at**: desktop ({{VIEWPORT_WIDTH}}px) and mobile (390px) — evaluate both where screenshots are provided
+{{GLOBAL_CONTEXT}}
 
 ## Screenshots to Attach
 
