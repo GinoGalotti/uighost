@@ -20,7 +20,7 @@ async function extractInteractiveElements(page: Page): Promise<InteractiveElemen
   const raw = await page.evaluate(() => {
     const SELECTORS = 'a, button, input, select, textarea, [role="button"], [onclick]';
 
-    function getSelector(el: Element): string {
+    const getSelector = (el: Element): string => {
       if (el.id) return `#${CSS.escape(el.id)}`;
       const tag = el.tagName.toLowerCase();
       const parent = el.parentElement;
@@ -28,7 +28,7 @@ async function extractInteractiveElements(page: Page): Promise<InteractiveElemen
       const siblings = Array.from(parent.children).filter(c => c.tagName === el.tagName);
       if (siblings.length <= 1) return tag;
       return `${tag}:nth-of-type(${siblings.indexOf(el) + 1})`;
-    }
+    };
 
     return Array.from(document.querySelectorAll(SELECTORS))
       .map(el => {
