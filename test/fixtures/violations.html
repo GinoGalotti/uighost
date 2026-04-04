@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- Missing lang attribute on <html> -->
+<html>
+<head>
+  <title>Violations Fixture</title>
+  <!-- No viewport meta tag -->
+</head>
+<body>
+
+  <!-- Multiple h1 elements -->
+  <h1>First heading</h1>
+  <h1>Second heading</h1>
+
+  <!-- Heading level skip: h1 → h3 (no h2 in between) -->
+  <h3>Skipped to h3</h3>
+
+  <!-- Links with generic text -->
+  <a href="/page1">Click Here</a>
+  <a href="/page2">Read More</a>
+  <a href="/page3">Learn More</a>
+  <a href="/page4">here</a>
+
+  <!-- Buttons with no accessible name -->
+  <button></button>
+  <button>   </button>
+
+  <!-- Input with no label or placeholder -->
+  <input type="text" />
+
+</body>
+</html>
