@@ -9,6 +9,7 @@ export interface CrawlOptions {
   depth: number;
   maxPages: number;
   screenshotDir: string;
+  storageStatePath?: string;
 }
 
 export interface InteractiveElement {
@@ -65,6 +66,9 @@ export async function crawl(entryUrl: string, options: CrawlOptions): Promise<Cr
   const errors: Array<{ url: string; error: string }> = [];
 
   const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext(
+    options.storageStatePath ? { storageState: options.storageStatePath } : {}
+  );
 
   try {
     while (queue.length > 0 && pages.length < maxPages) {
@@ -79,7 +83,7 @@ export async function crawl(entryUrl: string, options: CrawlOptions): Promise<Cr
 
       console.log(`  [${pageIndex}] ${url}`);
 
-      const page = await browser.newPage();
+      const page = await context.newPage();
       try {
         await page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 });
         const extracted = await extractPageState(page);
@@ -112,6 +116,7 @@ export async function crawl(entryUrl: string, options: CrawlOptions): Promise<Cr
       }
     }
   } finally {
+    await context.close();
     await browser.close();
   }
 
