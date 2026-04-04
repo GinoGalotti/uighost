@@ -101,6 +101,46 @@ uighost/
 
 ---
 
+## Auth / Login design
+
+**Problem:** most real apps are behind auth. The crawler needs a way to carry a logged-in session without storing credentials in code or config.
+
+**Solution: Playwright storageState persistence**
+
+Playwright's `context.storageState()` snapshots all cookies + localStorage for a browser context. We save that to disk keyed by domain and reload it on the next crawl.
+
+```
+.uighost/auth/<domain>.json   ← storageState snapshot (gitignored)
+```
+
+### Commands
+
+```bash
+uighost login https://app.example.com
+# Opens headed Chromium at the URL.
+# You log in however the site requires (password, SSO, 2FA — anything).
+# Press Enter → saves storageState to .uighost/auth/app.example.com.json
+
+uighost capture https://app.example.com
+# Automatically detects .uighost/auth/app.example.com.json
+# Loads it into browser context before crawling
+# Prints "Auth: .uighost/auth/app.example.com.json" in output
+```
+
+### Implementation
+
+- `src/auth/session.ts` — `saveSession(url, storageState)` / `loadSession(url): string | undefined`
+- `CrawlOptions.storageStatePath?: string` — passed to `browser.newContext({ storageState })`
+- Auth files live under `.uighost/auth/` which is gitignored — credentials never committed
+
+### Limitations / future work
+
+- StorageState expires when the site's session cookie expires — user reruns `login` to refresh
+- Does not handle apps that require a fresh login on every visit (short-lived tokens)
+- Future: `--auth-script <file>` option for scripted login flows (OAuth, SAML) that can't be done interactively
+
+---
+
 ## Week 1 — Capture pipeline MVP
 
 **Goal:** `uighost capture https://example.com` produces a folder with screenshots, element data, and a ready-to-paste prompt. You copy the prompt into claude.ai with the screenshots and get UX feedback.
