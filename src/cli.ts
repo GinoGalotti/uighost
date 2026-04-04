@@ -43,9 +43,10 @@ program
     console.log(`  Output:    ${captureDir}\n`);
 
     const result = await crawl(url, { depth, maxPages, screenshotDir, storageStatePath });
-    const pkg = await saveCapture(result, captureDir);
+    const pkg = await saveCapture(result, captureDir, { maxDepth: depth, maxPages });
 
     console.log(`\nDone.`);
+    console.log(`  Capture ID:     ${pkg.captureId}`);
     console.log(`  Pages captured: ${pkg.pageCount}`);
     console.log(`  Errors:         ${result.errors.length}`);
     console.log(`  Capture saved:  ${pkg.path}`);

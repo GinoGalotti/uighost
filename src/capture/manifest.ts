@@ -2,33 +2,38 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 export interface PageManifest {
+  index: number;
   url: string;
-  title: string;
   screenshotFile: string;
   dataFile: string;
   elementCount: number;
-  crawledAt: string;
 }
 
 export interface CaptureManifest {
-  version: string;
-  startUrl: string;
+  captureId: string;
+  entryUrl: string;
   capturedAt: string;
-  durationMs: number;
+  pageCount: number;
   pages: PageManifest[];
+  options: { maxDepth: number; maxPages: number };
+  duration: number;
 }
 
 export function buildManifest(
-  startUrl: string,
+  captureId: string,
+  entryUrl: string,
   pages: PageManifest[],
-  durationMs: number
+  options: { maxDepth: number; maxPages: number },
+  duration: number
 ): CaptureManifest {
   return {
-    version: '1.0.0',
-    startUrl,
+    captureId,
+    entryUrl,
     capturedAt: new Date().toISOString(),
-    durationMs,
+    pageCount: pages.length,
     pages,
+    options,
+    duration,
   };
 }
 
